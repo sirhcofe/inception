@@ -1,0 +1,81 @@
+version: "3.8"
+
+services:
+  nginx:
+    container_name: nginx
+    image: nginx
+    build:
+      context: ./requirements/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "443:443"
+    volumes:
+      - ${HOME}/data/wordpress:/var/www/html
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    depends_on:
+      - wordpress
+    networks:
+      - inception
+    restart: always
+
+  wordpress:
+    container_name: wordpress
+    image: wordpress
+    build:
+      context: ./requirements/wordpress
+      dockerfile: Dockerfile
+    volumes:
+      - ${HOME}/data/wordpress:/var/www/html
+    environment:
+      WORDPRESS_DB_HOST: ${WORDPRESS_DB_HOST}
+      WORDPRESS_DB_NAME: ${WORDPRESS_DB_NAME}
+      WORDPRESS_DB_USER: ${WORDPRESS_DB_USER}
+      WORDPRESS_SITE_TITLE: ${WORDPRESS_SITE_TITLE}
+      WORDPRESS_ADMIN: ${WORDPRESS_ADMIN}
+      WORDPRESS_ADMIN_EMAIL: ${WORDPRESS_ADMIN_EMAIL}
+      WORDPRESS_USER: ${WORDPRESS_USER}
+      WORDPRESS_USER_EMAIL: ${WORDPRESS_USER_EMAIL}
+      WORDPRESS_SITE_URL: ${DOMAIN_NAME}
+    secrets:
+      - wp_admin_password
+      - wp_user_password
+    depends_on:
+      - mariadb
+    networks:
+      - inception
+    restart: always
+
+  mariadb:
+    container_name: mariadb
+    image: mariadb
+    build:
+      context: ./requirements/mariadb
+      dockerfile: Dockerfile
+    volumes:
+      - ${HOME}/data/mariadb:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_DATABASE: ${WORDPRESS_DB_NAME}
+      MYSQL_USER: ${WORDPRESS_DB_USER}
+      MYSQL_PASSWORD_FILE: /run/secrets/wp_admin_password
+    secrets:
+      - db_root_password
+      - wp_admin_password
+    networks:
+      - inception
+    restart: always
+    expose:
+      - "3306"
+
+networks:
+  inception:
+    driver: bridge
+
+secrets:
+  db_root_password:
+    file: ../secrets/db_root_password.txt
+  wp_admin_password:
+    file: ../secrets/wp_admin_password.txt
+  wp_user_password:
+    file: ../secrets/wp_user_password.txt
